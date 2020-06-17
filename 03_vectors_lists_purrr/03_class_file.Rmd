@@ -1,0 +1,313 @@
+---
+title: "Class File Week 3"
+author: "Richard Ressler"
+date: "2/3/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r, message=FALSE}
+library(tidyverse)
+```
+
+```{r}
+x <- c(1L,10L,2L)
+typeof(x)
+is_double(x)
+is_integer(x)
+is_numeric(x)
+
+```
+```{r}
+x <- c("hello", "good", "sir" )
+is_character(x)
+x <- c(TRUE, FALSE, TRUE)
+is_logical(x)
+x <- factor(c("A","B","C"))
+typeof(x)
+class(x)
+levels(x)
+as.numeric(x)
+x <- lubridate::ymd(20150115, 20110604, 20131212)
+typeof(x)
+class(x)
+```
+
+```{r}
+x <- c(horse = 7, man = 1, dog =9)
+x
+names(x)
+names(x)[1] <- "cat"
+x[c(TRUE, FALSE, TRUE)]
+
+x[-1]
+x[-c(1,3)]
+x[[2]]
+x[2]
+```
+```{r}
+x <- c(Yoshi = 10L,
+       Mario = 31L,
+       Luigi = 72L,
+       Peach = 11L,
+       Toad  = 38L)
+x
+typeof(x)
+class(x)
+is_numeric(x)
+x[c(1,4)]
+x[-c(2,3,5)]
+x[c(TRUE, FALSE, FALSE, TRUE, FALSE)]
+x[c("Yoshi", "Peach")]
+x[x==10L]
+
+```
+
+```{r}
+x <- c(1,4,1,5)
+x+10
+x+c(10,20)
+x+c(10,20, 30)
+x+c(10,20, 30, 40)
+```
+```{r}
+my_first_list <- list(x = "a", y = 1, z = c(1L, 2L, 3L), list("a", 1))
+my_first_list
+length(my_first_list)
+str(my_first_list)
+```
+```{r}
+my_first_list[1:2]
+str(my_first_list[3])
+my_first_list["y"]
+
+str(my_first_list[4])
+my_first_list[[4]][1]
+my_first_list$z
+my_first_list$x <- NULL
+str(my_first_list)
+```
+
+```{r}
+wedding <- list(venue = "chick-fil-a",
+                guest = tribble(~name,     ~meal, ~age,
+                                ##--------/------/-----
+                                "Yoshi",   "V",   29L,
+                                "Wario",   "C",   27L,
+                                "Bowser",  "V",   34L,
+                                "Luigi",   "C",   36L,
+                                "Toad",    "B",   34L), 
+                bride = "Peach",
+                groom = "Mario",
+                date  = parse_date("11/10/2020", "%d/%m/%Y"))
+str(wedding)
+```
+```{r}
+wedding$guest %>% 
+  filter(name != "Wario") ->
+  wedding$guest
+wedding$guest
+wedding$meal <- c(V = "vegetarian", C = "chicken", B= "beef")
+str(wedding)
+
+```
+```{r}
+wedding[c(1,5)]
+wedding[c("venue","date")]
+wedding$venue %>% 
+  str_replace(pattern = "^c", "C") ->
+  wedding$venue
+wedding$venue
+```
+
+# Iterators
+
+```{r}
+x <- c(8, 1, 3, 1, 3)
+sumval <- 0
+for (i in seq_along(x)) {
+  sumval <- sumval + x[[i]]
+} #end for
+sumval
+```
+
+```{r}
+cumvec <- vector(mode = "double", length = length(x))
+cumvec
+for (i in seq_along(cumvec)) {
+   if (i == 1) {
+     cumvec[[i]] <- x[[i]]
+   } else {
+     cumvec[[i]] <- cumvec[[i - 1]] + x[[i]] 
+   }
+}
+cumvec
+```
+
+Fibonacci
+```{r}
+fibvec <- vector(mode = "double", length = 100)
+for (i in seq_along(fibvec)) {
+  if (i > 2) {
+    fibvec[[i]] <- fibvec[[i-1]] + fibvec[[i-2]]
+  } else if (i == 1) {
+    fibvec[[i]] <- 0
+  } else if (i ==2) {
+    fibvec[[i]] <- 1
+  } else {
+    stop(paste0("i= ",i))
+  }
+  
+}# end for loop
+head(fibvec, 15)
+log2(fibvec[100])
+```
+
+mtcars
+```{r}
+data("mtcars")
+mean_vec <- vector(mode = "numeric", length = length(mtcars))
+for (i in seq_along(mtcars)) {
+  mean_vec[[i]] <- mean(mtcars[[i]], na.rm = TRUE)   
+}
+mean_vec
+colMeans(mtcars)
+```
+
+```{r}
+head(iris)
+data("iris")
+sdvec <- rep(NA, length = 4)
+for (i in seq_along(sdvec)){
+  sdvec[[i]] <- sd(iris[[i]], na.rm = TRUE)
+}
+sdvec
+```
+```{r}
+set.seed(1)
+flip <- function() sample(c("T", "H"), 1)
+
+flips <- 0
+nheads <- 0
+
+while (nheads < 3) {
+  if (flip() == "H") {
+    nheads <- nheads + 1
+  } else {
+    nheads <- 0 #start over
+  } # end else
+  flips <- flips + 1 
+} # end while loop
+flips
+```
+
+# Purrr
+
+```{r}
+map(mtcars, summary)
+str(summary(mtcars$mpg))
+```
+
+```{r}
+library(nycflights13)
+data(flights)
+head(flights)
+typeof(typeof(flights$year))
+map_chr(flights, typeof)
+```
+2. 
+```{r}
+data("iris")
+map_int(iris, n_distinct)
+```
+
+```{r}
+map_dfc(seq(10, 100, by=10), rnorm, n=10)
+```
+
+```{r}
+mtcars %>% 
+  split(.$cyl) %>% 
+  map(function(df) lm(mpg ~ wt, data = df)) ->
+  lmlist
+
+```
+
+```{r}
+mtcars %>% 
+  split(.$cyl) %>% 
+  map(~lm(mpg ~ wt, data = .)) ->
+  lmlist
+lmlist %>% 
+  map(summary) ->
+  sumlist
+sumlist[[1]]
+#str(sumlist)
+sumlist[[1]]$r.squared
+```
+t-test
+```{r}
+mtcars %>% 
+  split(.$cyl) %>% 
+  map(~t.test(mpg~am, data = .)) %>% 
+  map_dbl(~.$p.value)
+```
+
+
+```{r}
+iris %>%
+  keep(is.numeric) %>%
+  map_dbl(mean)
+iris %>%
+  discard(is.numeric) %>%
+  map(table)
+```
+
+```{r}
+mtcars %>% 
+  keep(~mean(.) >10) %>% 
+  map_dbl(mean)
+```
+
+
+# Lab
+
+2. Diamonds
+
+```{r}
+data("diamonds")
+
+diamonds %>% 
+  keep(is.numeric) %>%
+  map(summary)
+
+
+
+
+```
+
+3. 
+```{r}
+diamonds %>% 
+  split(.$color) %>% 
+  map(~lm(price ~ depth, data = .)) %>% 
+  map(~summary(.)) ->
+  lmout_sum
+lmout_sum %>% 
+  map_dbl(~.$coefficients["depth", "Pr(>|t|)"]) %>% 
+  print(digits = 3)
+lmout_sum %>% 
+  map_dbl(~.$adj.r.squared) %>% 
+  print(digits = 3)
+```
+```{r}
+library(hexbin)
+ggplot(diamonds, aes(x=depth, y= price)) +
+  geom_hex() +
+  facet_wrap(. ~color)+
+  geom_smooth( method = lm) +
+  theme_bw()
+```
+

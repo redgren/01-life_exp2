@@ -1,0 +1,409 @@
+---
+title: "Class Notes"
+author: "Richard Ressler"
+date: "`r Sys.Date()"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(data.table)
+```
+```{r}
+inputf <- if (file.exists("./data/flights14.csv")) {
+   "./data/flights14.csv"
+} else {
+  "https://raw.githubusercontent.com/Rdatatable/data.table/master/vignettes/flights14.csv"
+}
+          start_time <- Sys.time()
+flights <- fread(inputf)
+          end_time = Sys.time()
+
+times <- tibble(start = start_time, end = end_time, 
+                elapsed = lubridate::as.duration(end_time - start_time))
+```
+
+```{r}
+class(flights)
+```
+
+```{r}
+        start_time <- Sys.time()
+flights_tib <- read_csv(inputf, col_types = cols(hour = col_integer()))
+        end_time = Sys.time()
+
+times <- bind_rows(times,tibble(start = start_time, end = end_time, 
+                    elapsed = lubridate::as.duration(end_time - start_time)))
+round(100*(times[2,3]-times[1,3])/times[1,3],1)
+```
+```{r}
+inspectdf::inspect_mem(flights, df2 = flights_tib, show_plot = FALSE)
+```
+```{r}
+rbind(map(flights, class),map(flights_tib, class))
+
+```
+
+```{r}
+inputf2 <- "../../../Data_Sets/BPD_crime_files/BPD_Part_1_Victim_Based_Crime_Data.csv"
+              start_time <- Sys.time()
+    bpd_crime <- fread(inputf2)
+              end_time = Sys.time()
+    
+    times2 <- tibble(start = start_time, end = end_time, 
+                    elapsed = lubridate::as.duration(end_time - start_time))
+                start_time <- Sys.time()
+    bpd_crime_tib <- read_csv(inputf2)
+            end_time = Sys.time()
+    
+    times2 <- bind_rows(times2,tibble(start = start_time, end = end_time, 
+                        elapsed = lubridate::as.duration(end_time - start_time)))
+    round(100*(times2[2,3]-times2[1,3])/times2[1,3],1)
+```
+```{r}
+    inspectdf::inspect_mem(bpd_crime, df2 = bpd_crime_tib, show_plot = FALSE) 
+    rm(inputf2, bpd_crime,bpd_crime_tib, end_time, start_time)
+```
+
+```{r}
+str(flights)
+```
+
+```{r}
+glimpse(flights)
+```
+```{r}
+temp_dt <- as.data.table(flights_tib)
+class(temp_dt)
+rm(temp_dt)
+```
+```{r}
+## data.table way
+flights[origin == "JFK" & dest == "LAX"]
+
+## equivalent tidyverse way
+flights_tib %>%
+  filter(origin == "JFK", dest == "LAX")
+```
+```{r}
+flights[c(1,2,207)]
+```
+
+```{r}
+flights[order(origin, -dest)]
+```
+
+```{r}
+fl1 <- flights[origin == "EWR" | origin == "LGA"]
+    fl1[order(-dep_delay)]
+```
+
+```{r}
+flights[,dest] %>% str()
+
+```
+
+```{r}
+flights[,.(dest)] %>% str()
+
+flights[,list(origin,dest)]
+
+flights[, c("origin", "dest")]
+flights[, origin:dest] %>% str()
+```
+
+```{r}
+keep_vec <- c("origin", "dest")
+flights[, ..keep_vec] %>% head()
+flights[, keep_vec, with = FALSE] %>% head()
+```
+
+```{r}
+flights[, .(delay_arr = arr_delay, delay_dep = dep_delay)] %>% head()
+```
+```{r}
+flights[, !c("year", "month")] %>% head()
+flights[, -(year:month)]  %>% head()
+```
+
+```{r}
+flights[,c("year", "month", "day", "hour")]
+flights[,.(year, month, day, hour)]
+
+```
+```{r}
+## data.table way
+flights[origin == "JFK" & dest == "LAX", .(year, month, day, hour)] 
+
+## equivalent tidyverse way
+flights_tib %>%
+  filter(origin == "JFK", dest == "LAX") %>%
+  select(year, month, day, hour)
+```
+
+```{r}
+flights[origin =="JFK", .(dep_delay)]
+```
+
+```{r}
+flights[, sum((arr_delay + dep_delay) < 0 )] 
+```
+```{r}
+flights[origin == "JFK" & month == 6L,
+               .(m_arr = mean(arr_delay), m_dep = mean(dep_delay))] %>% 
+  head()
+```
+
+```{r}
+flights[,.(dd=mean(dep_delay))]
+```
+
+
+```{r}
+flights[,.(dd=mean(dep_delay), ad=mean(arr_delay))]
+flights[origin == "JFK",.(.N)]
+```
+
+```{r}
+flights[,.(dd = mean(dep_delay)), by = .(origin)]
+```
+
+```{r}
+flights_tib %>% 
+  group_by(origin) %>% 
+  summarize(dd = mean(dep_delay))
+```
+```{r}
+flights[,.(dd = mean(dep_delay), .N), by = .(origin, carrier)]
+```
+
+```{r}
+flights_tib %>% 
+  group_by(origin, carrier) %>% 
+  summarize(dd = mean(dep_delay), N=n())
+```
+
+```{r}
+flights[,.(dd = mean(dep_delay), .N), keyby = .(origin, carrier)]
+```
+```{r}
+flights[, .(max(dep_delay), max(arr_delay)), by = .(origin, carrier)] %>% head()
+```
+
+```{r}
+flights[,.(median_air_time = median(air_time)), by = .(month)]
+```
+
+```{r}
+flights[carrier == "DL", .(n_trips = .N), by = .(origin)]
+```
+
+```{r}
+flights[month %in% c(1,2), .(mean_dep_delay = mean(dep_delay)), keyby = .(month, origin)]
+```
+```{r}
+# No linebreak
+flights[carrier == "AA", .N, by = .(origin, dest)][
+  order(origin, -dest)
+  ] %>% 
+  head()
+
+flights[carrier == "AA", .N, by = .(origin, dest)] %>% 
+  .[order(origin, -dest)] 
+```
+
+```{r}
+flights[,map_dbl(.SD, mean), by = .(month, origin)] 
+flights[, map_dbl(.SD[,.(dep_delay, arr_delay)], mean), by = .(month,origin)]
+```
+
+```{r}
+flights[carrier == "AA",                       ## On trips with carrier "AA",
+        lapply(.SD, mean),                     ## compute the mean
+        by = .(origin, dest, month),           ## for every 'origin,dest,month'
+        .SDcols = c("arr_delay", "dep_delay")] %>%  ## for these columns
+  head()
+```
+
+```{r}
+flights[,c("gain") := .(dep_delay - arr_delay)]
+
+flights[, ':=' (gain = dep_delay - arr_delay, #ususal
+                loss = arr_delay - dep_delay)] # backwards
+```
+
+```{r}
+flights[hour == 24L, hour := 0L]
+flights[hour == 24L][,hour := 0L]
+```
+
+```{r}
+flights[, c("loss") := .(NULL)]
+```
+
+```{r}
+flights[, c("gain", "dist_km") := .(dep_delay - arr_delay, 1.61 * distance)]
+flights
+
+flights[, c("gain", "dist_km") := .(NULL, NULL)]
+flights
+```
+
+```{r}
+flights[, c("speed") := .(distance/(air_time/60))]
+
+flights[, c("speed") := .(NULL)]
+```
+
+```{r}
+sort(unique(flights$hour))
+sort(unique(flights_tib$hour))
+```
+
+```{r}
+flights[hour ==24L, hour := 0L]
+flights_tib %>% 
+  mutate(hour = recode(hour, "24" = 0L)) ->
+  flights_tib
+```
+
+```{r}
+flights[origin == "JFK", origin := "John F. Kennedy"]
+flights[origin == "LGA", origin := "LaGuardia"]
+flights[origin == "EWR", origin := "Newark Liberty"]
+```
+
+```{r}
+dt4a <- as.data.table(tidyr::table4a)
+dt4b <- as.data.table(tidyr::table4b)
+dt4a
+```
+
+```{r}
+## data.table way
+melt(dt4a, 
+     id.vars       = c("country"),
+     measure.vars  = c("1999", "2000"),
+     variable.name = "year",
+     value.name    = "count")
+
+## Equivalent tidyverse way
+tidyr::table4a %>%
+  pivot_longer(cols = c(`1999`, `2000`), names_to = "year", 
+               names_ptypes = list(year = factor()),  values_to = "count")
+```
+
+```{r}
+monkeymem <- fread("./data/monkeymem.csv")
+melt(monkeymem,
+     id.vars = c("Monkey", "Treatment"),
+     measure.vars = c("Week2", "Week4", "Week8", "Week12", "Week16"),
+     variable.name = "Week",
+     value.name = "Percent")
+```
+
+```{r}
+dt2 <- as.data.table(tidyr::table2)
+dt2
+## data.table way
+dcast(dt2, formula = country + year ~ type, value.var = "count")
+
+## Equivalent tidyverse way
+tidyr::table2 %>%
+      pivot_wider(names_from = type, values_from = count)
+```
+
+```{r}
+dt3 <- as.data.table(tidyr::table3)
+head(dt3)
+
+## data.table way
+dt3[, c("cases", "population") := tstrsplit(rate, split = "/")]
+dt3[, rate := NULL]
+head(dt3)
+
+## equivalent tidyverse way
+tidyr::table3 %>%
+  separate(rate, into = c("cases", "population"), sep = "/") %>% head()
+```
+
+```{r}
+dt5 <- as.data.table(tidyr::table5)
+dt5
+## data.table way
+dt5[, year := paste(century, year, sep = "")]
+dt5[, century := NULL]
+dt5
+
+## Equivalent tidyverse way
+tidyr::table5 %>%
+  unite(century, year, col = "year", sep = "")
+```
+
+```{r}
+xdf <- data.table(mykey = c("1", "2", "3"),
+                  x_val = c("x1", "x2", "x3"))
+ydf <- data.table(mykey = c("1", "2", "4"),
+                  y_val = c("y1", "y2", "y3"))
+xdf
+ydf
+```
+```{r}
+## data.table way
+merge(xdf, ydf, by = "mykey")
+
+## equivalent tidyverse way
+inner_join(xdf, ydf, by = "mykey") 
+```
+
+```{r}
+## data.table way
+merge(xdf, ydf, by = "mykey", all.x = TRUE)
+
+## equivalent tidyverse way
+left_join(xdf, ydf, by = "mykey")
+```
+
+```{r}
+## data.table way
+merge(xdf, ydf, by = "mykey", all.y = TRUE)
+
+## equivalent tidyverse way
+right_join(xdf, ydf, by = "mykey")
+```
+
+```{r}
+## data.table way
+merge(xdf, ydf, by = "mykey", all.x = TRUE, all.y = TRUE)
+
+## equivalent tidyverse way
+full_join(xdf, ydf, by = "mykey")
+```
+
+```{r}
+names(ydf)[1] <- "newkey"
+ydf
+```
+
+```{r}
+## data.table way
+merge(xdf, ydf, by.x = "mykey", by.y = "newkey")
+
+## equivalent tidyverse way
+inner_join(xdf, ydf, by = c("mykey" = "newkey"))
+```
+
+```{r}
+## data.table way
+rbind(xdf, ydf, fill = TRUE)
+cbind(xdf, ydf[,2])
+
+## equivalent tidyverse way
+bind_rows(xdf, ydf)
+bind_cols(xdf,ydf[,2])
+```
+

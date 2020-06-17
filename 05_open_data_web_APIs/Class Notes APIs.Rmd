@@ -1,0 +1,124 @@
+---
+title: "Census Exercise"
+author: "Richard Ressler"
+date: "2/24/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(httr)
+library(keyring)
+library(tidycensus)
+
+```
+
+```{r}
+### Get your key value into a variable
+
+my_census_key <- key_get("CENSUS_API_KEY_SECURE")
+```
+
+```{r}
+m90 <- get_decennial(geography = "state", variables = "H043A001", year = 1990, key = my_census_key)
+
+head(m90)
+nrow(m90)
+m90 %>%
+  ggplot(aes(x = value, y = reorder(NAME, value))) + 
+  geom_point()
+```
+
+```{r}
+v17 <- load_variables(2017, "acs5", cache = TRUE)
+```
+
+```{r}
+c3200 <- load_variables(2000, "sf3", cache = TRUE)
+view(c3200)
+
+m2000 <- get_decennial(geography = "state", variables = "H063001", year = 2000, key = my_census_key)
+head(m2000)
+nrow(m2000)
+```
+
+```{r}
+m90 %>% 
+  mutate(year = 1990) ->
+  m90
+head(m90)
+
+m2000 %>% 
+  mutate(year = 2000)->
+  m2000
+head(m2000)
+rbind.data.frame(m90,m2000) %>% 
+  mutate(year = as.factor(year))->
+  mgr
+head(mgr)
+tail(mgr)
+```
+
+Find the extra row
+
+```{r}
+mgr %>% 
+  group_by(NAME) %>% 
+  summarize(n=n()) %>% 
+  filter(n !=2) ->
+  unmatched
+unmatched
+
+mgr %>% 
+  filter(NAME != unmatched$NAME)->
+  mgr
+nrow(mgr)
+```
+
+```{r}
+mgr %>% 
+  ggplot(aes(x=year, y = value))+
+  geom_boxplot()
+view(mgr)
+```
+
+```{r}
+mgr %>% 
+  select(-variable) %>% 
+  pivot_wider(names_from = year, names_prefix = "y") ->
+  mgr_wide
+head(mgr_wide)
+
+mgr_wide %>% 
+  ggplot(aes(x=y1990, y=y2000)) +
+  geom_point() +
+  geom_smooth(method = "lm", color = "red", lty = 3, se = FALSE)
+```
+
+```{r}
+mgr_wide %>% 
+  mutate(prent_change = (y2000-y1990)/y1990,
+         rent_change = (y2000-y1990)) %>% 
+  arrange(desc(prent_change)) %>% 
+  select(NAME, y1990, y2000, rent_change, prent_change) %>% 
+  slice(c(1:5, 47:51))
+
+lmout <- lm(y2000 ~ y1990, data = mgr_wide)
+lmout
+summary(lmout)
+```
+```{r}
+library(rjson)
+```
+
+```{r}
+census_tracts <- fromJSON(file = "./data/washington_DC_censustracts.json")
+class(census_tracts)
+view(census_tracts)
+census_tracts$features[[541]]$properties$DISPLAY_NAME
+```
+

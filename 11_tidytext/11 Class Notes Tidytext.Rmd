@@ -1,0 +1,548 @@
+---
+title: "Class Notes TidyText"
+author: "Richard Ressler"
+date: "4/13/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, message=FALSE}
+library(tidyverse)
+library(tidytext)
+library(stringr)
+```
+
+```{r}
+text <- c("If You Forget Me",
+"by Pablo Neruda",
+"I want you to know",
+"one thing.",
+"You know how this is:",
+"if I look",
+"at the crystal moon, at the red branch",
+"of the slow autumn at my window,",
+"if I touch",
+"near the fire",
+"the impalpable ash",
+"or the wrinkled body of the log,",
+"everything carries me to you,",
+"as if everything that exists,",
+"aromas, light, metals,",
+"were little boats",
+"that sail",
+"toward those isles of yours that wait for me."
+)
+text
+```
+
+```{r}
+text_df <- tibble(line = 1:length(text), text = text)
+```
+```{r}
+text_df %>% 
+  unnest_tokens(word, text)
+```
+
+```{r}
+data("stop_words")
+text_df %>% 
+  unnest_tokens(word, text) %>% 
+  anti_join(stop_words) %>% 
+  count(word, sort = TRUE) ->
+  text_word_count
+text_word_count
+  
+```
+# Jane Austen
+
+```{r}
+library(janeaustenr)
+```
+
+```{r}
+austen_books() %>% 
+  group_by(book) %>% 
+  mutate(linenumber = row_number(),
+         chapter = cumsum(str_detect(text,
+                                     regex("^chapter [\\divxlc]",
+                                           ignore_case = TRUE)))) %>% 
+  ungroup() %>% 
+select(chapter, linenumber, everything())->
+  orig_books
+```
+
+```{r}
+orig_books %>% 
+  unnest_tokens(word,text) %>% 
+  mutate(word = str_extract(word, "[a-z']+")) %>% 
+  anti_join(stop_words)->
+  tidy_books
+```
+```{r}
+tidy_books %>% 
+  count(word, sort = TRUE)
+```
+```{r}
+tidy_books %>% 
+  count(word, sort = TRUE) %>% 
+  filter(n>400) %>% 
+  mutate(word = reorder(word, n)) %>% 
+  ggplot(aes(word, n)) +
+  geom_col()+
+  xlab(NULL)+
+  coord_flip()
+```
+
+    ```{r, plot_by_book}
+    tidy_books %>%
+      group_by(book) %>% 
+      count(word, sort = TRUE) %>%
+      ungroup() %>% 
+      group_by(word) %>% 
+      mutate(word_total = sum(n)) %>% 
+      ungroup() %>% 
+      filter(word_total > 370) %>%
+      mutate(word = reorder(word,word_total)) %>% 
+      ggplot(aes(word, n,  fill = book)) +
+        geom_col() +
+        xlab(NULL) +
+        coord_flip()
+    ```
+    
+```{r}
+    tidy_books %>%
+          group_by(book) %>% 
+          count(word, sort = TRUE) %>%
+          ungroup() %>% 
+      pivot_wider( names_from = book, values_from = n) ->tempp
+    tempp %>% 
+      mutate(tot_books = is.na(tempp$`Mansfield Park`) +
+                         is.na(tempp$`Sense & Sensibility`) +
+                         is.na(tempp$`Pride & Prejudice`) +
+                         is.na(tempp$`Emma`) +
+                         is.na(tempp$`Northanger Abbey`) +
+                         is.na(tempp$`Persuasion`)) %>% 
+      filter(tot_books ==5) %>% 
+      select(-tot_books) %>% 
+      pivot_longer(-word, names_to = "book", values_to = "count") %>% 
+      filter(!is.na(count)) %>% 
+      group_by(book) %>% 
+      filter(count == max(count)) %>% 
+      arrange(desc(count)) 
+    rm(tempp)
+    #note emma occurs once in Persuasion
+```
+
+```{r}
+library(gutenbergr)
+```
+```{r}
+gutenberg_works() %>%
+  filter(title == "Wuthering Heights")
+gutenberg_works() %>%
+  filter(str_detect(title,"Wuthering Heights") )%>% head()
+
+# or Find the author ID and then the work IDs
+gutenberg_authors[(str_detect(gutenberg_authors$author, "Wells")),]
+```
+
+```{r}
+gutenberg_works(gutenberg_author_id == 30) %>%
+  arrange(title) %>% 
+  mutate(stitle = str_trunc(title,40)) %>% 
+  select(stitle, gutenberg_id) 
+```
+
+```{r}
+hgwells <- gutenberg_download(c(35, 36, 159, 5230))
+bronte <- gutenberg_download(c(767, 768, 969, 1260, 9182))
+
+tidy_hgwells <- hgwells %>%
+  unnest_tokens(word, text) %>%
+  mutate(word = str_extract(word, "[a-z']+")) %>%
+  anti_join(stop_words)
+tidy_bronte <- bronte %>%
+  unnest_tokens(word, text) %>%
+  mutate(word = str_extract(word, "[a-z']+")) %>%
+  anti_join(stop_words)
+
+tidy_hgwells %>%
+  count(word, sort = TRUE)
+```
+```{r}
+tidy_bronte %>%
+  count(word, sort = TRUE)
+```
+
+```{r}
+bind_rows(mutate(tidy_bronte, author = "Bronte"),
+          mutate(tidy_hgwells, author = "Wells"),
+          mutate(tidy_books, author = "Austen")) %>%
+  mutate(word = str_extract(word, "[a-z']+")) %>%
+  count(author, word) %>% 
+  group_by(author) %>%
+    mutate(proportion = n / sum(n)) %>%
+    select(-n) -> freq_by_author_by_word
+arrange(freq_by_author_by_word,word)
+```
+
+```{r}
+freq_by_author_by_word %>% 
+    pivot_wider(names_from = author, values_from = proportion) ->
+frequency_by_word_across_authors
+frequency_by_word_across_authors
+```
+
+```{r}
+frequency_by_word_across_authors %>%
+  pivot_longer(Bronte:Wells, names_to = "author", names_ptypes = list(factor()), 
+               values_to = "proportion") ->
+  frequency
+
+arrange(frequency, word)
+```
+
+```{r}
+library(scales) 
+frequency %>% ggplot(aes(x = proportion, 
+          y = `Austen`, 
+          color = abs(`Austen` - proportion))) +
+  geom_abline(color = "gray40", lty = 2) +
+  geom_jitter(alpha = 0.1, size = 2.5, 
+              width = 0.3, height = 0.3) +
+  geom_text(aes(label = word), 
+            check_overlap = TRUE, vjust = 1.5) +
+  scale_x_log10(labels = percent_format()) +
+  scale_y_log10(labels = percent_format()) +
+  scale_color_gradient(limits = c(0, 0.001), 
+                       low = "darkslategray4",
+                       high = "gray75") +
+  facet_wrap(~author, ncol = 2) +
+  theme(legend.position="none") +
+  labs(y = "Jane Austen", x = NULL)
+```
+
+```{r}
+df_Bronte <- frequency[frequency$author == "Bronte",]
+#head(df_Bronte)
+cor.test(data = df_Bronte,  ~ proportion + `Austen`)
+```
+
+```{r}
+df_Wells <- frequency[frequency$author == "Wells",]
+#head(df_Wells)
+cor.test(data = df_Wells,  ~ proportion + `Austen`)
+```
+
+# Sentiment ANalysis
+
+```{r}
+sentiments %>% arrange(word) %>% tail()
+```
+
+```{r}
+tail(get_sentiments("afinn"))
+```
+
+```{r}
+get_sentiments("bing")
+tail(get_sentiments("bing"))
+```
+
+```{r}
+get_sentiments("nrc")
+tail(get_sentiments("nrc"))
+unique(get_sentiments("nrc")$sentiment)
+```
+
+```{r}
+austen_books() %>%
+  group_by(book) %>%
+  mutate(linenumber = row_number(),
+         chapter = cumsum(str_detect(text, 
+                    regex("^chapter [\\divxlc]",
+                   ignore_case = TRUE)))) %>%
+  ungroup() %>%
+  # use `word` so the inner_join will match with the nrc lexicon
+  unnest_tokens(word, text) ->
+  tidy_books
+tidy_books
+```
+
+```{r}
+nrcfear <- get_sentiments("nrc") %>% 
+  filter(sentiment == "fear")
+tidy_books %>%
+  filter(book == "Emma") %>%
+  inner_join(nrcfear) %>%
+  count(word, sort = TRUE)
+```
+
+```{r}
+tidy_books %>%
+  inner_join(nrcfear) %>%
+  group_by(book, chapter) %>% 
+  count() ->
+  fear_chapter
+fear_chapter %>% 
+  ggplot(aes(chapter, n))+
+  geom_line() +
+  facet_wrap(~book, scales = "free_x")
+```
+```{r}
+get_sentiments("nrc") %>%
+  group_by(sentiment) %>%
+  count() %>% 
+  arrange(desc(n))
+```
+
+```{r}
+tidy_books %>%
+  inner_join(get_sentiments("bing")) %>% 
+  count(book, index = linenumber %/% 80, sentiment) %>% 
+  pivot_wider(names_from = sentiment, values_from = n, values_fill = list(n=0)) %>% 
+  mutate(sentiment = positive - negative) ->
+  janeaustensentiment
+
+janeaustensentiment %>%
+  ggplot(aes(index, sentiment, fill = book)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~book, ncol = 2, scales = "free_x")
+
+```
+
+```{r}
+tidy_books %>%
+  inner_join(get_sentiments("bing")) %>%
+  count(word, sentiment, sort = TRUE) %>%
+  ungroup() ->
+  bing_word_counts
+
+bing_word_counts
+```
+
+```{r}
+bing_word_counts %>%
+  group_by(sentiment) %>%
+  top_n(10) %>% 
+  ungroup() %>%
+  mutate(word = reorder(word, n)) %>%
+  ggplot(aes(word, n, fill = sentiment)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~sentiment, scales = "free_y") +
+  labs(y = "Contribution to sentiment",
+       x = NULL) +
+  coord_flip()
+```
+
+```{r}
+custom_stop_words <- bind_rows(data_frame(
+      word = c("miss"),
+      lexicon = c("custom")), 
+       stop_words)
+
+custom_stop_words
+```
+
+```{r}
+# Now, let's redo with the new stop words.
+austen_books() %>%
+  group_by(book) %>%
+  mutate(linenumber = row_number(),
+         chapter = cumsum(str_detect(text, 
+                    regex("^chapter [\\divxlc]",
+                   ignore_case = TRUE)))) %>%
+  ungroup() %>%
+  # use word so the inner_join will match with the nrc lexicon
+  unnest_tokens(word, text) %>%
+  anti_join(custom_stop_words) ->
+  tidy_books_no_miss
+
+tidy_books_no_miss %>%
+  inner_join(get_sentiments("bing")) %>%
+  count(word, sentiment, sort = TRUE) %>%
+  ungroup() ->
+  bing_word_counts
+
+bing_word_counts
+```
+```{r}
+bing_word_counts %>%
+  group_by(sentiment) %>%
+  top_n(10) %>%
+  ungroup() %>%
+  mutate(word = reorder(word, n)) %>%
+  ggplot(aes(word, n, fill = sentiment)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~sentiment, scales = "free_y") +
+  labs(y = "Contribution to sentiment",
+       x = NULL) +
+  coord_flip()
+```
+
+```{r}
+get_sentiments("bing") %>%
+  filter(word != "miss") ->
+bing_no_miss
+
+tidy_books %>%
+  inner_join(bing_no_miss) %>%
+  count(word, sentiment, sort = TRUE) %>%
+  ungroup() ->
+  bing_word_counts
+
+bing_word_counts
+```
+
+```{r}
+# visualize it
+bing_word_counts %>%
+  group_by(sentiment) %>%
+  top_n(10) %>%
+  ungroup() %>%
+  mutate(word = reorder(word, n)) %>%
+  ggplot(aes(word, n, fill = sentiment)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~sentiment, scales = "free_y") +
+  labs(y = "Contribution to sentiment",
+       x = NULL) +
+  coord_flip()
+```
+
+```{r}
+# Original
+tidy_books %>%
+  inner_join(get_sentiments("bing")) %>% 
+  count(book, index = linenumber %/% 80, sentiment) %>% 
+  pivot_wider(names_from = sentiment, values_from = n, values_fill = list(n=0)) %>% 
+  mutate(sentiment = positive - negative) ->
+  janeaustensentiment
+
+janeaustensentiment %>%
+  ggplot(aes(index, sentiment, fill = book)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~book, ncol = 2, scales = "free_x")
+```
+
+```{r}
+#No Miss
+tidy_books %>%
+  inner_join(bing_no_miss) %>% 
+  count(book, index = linenumber %/% 80, sentiment) %>% 
+  pivot_wider(names_from = sentiment, values_from = n, values_fill = list(n=0)) %>% 
+  mutate(sentiment = positive - negative) ->
+  janeaustensentiment
+
+janeaustensentiment %>%
+  ggplot(aes(index, sentiment, fill = book)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~book, ncol = 2, scales = "free_x")
+```
+
+# Worl CLoud
+
+```{r}
+library(wordcloud)
+tidy_books %>%
+  anti_join(stop_words) %>%
+  count(word) %>%
+  with(wordcloud(word, n, max.words = 100))
+```
+```{r}
+library(reshape2)
+
+tidy_books %>%
+  inner_join(bing_no_miss) %>%
+  count(word, sentiment, sort = TRUE) %>%
+  acast(word ~ sentiment, value.var = "n", fill = 0) %>%
+  comparison.cloud(colors = c("red", "blue"),
+                   max.words = 100)
+```
+
+```{r}
+library(ggrepel)
+tidy_books %>% 
+  inner_join(bing_no_miss) %>% 
+  count(book, word, sentiment, sort = TRUE) %>%
+  mutate(proportion = n/sum(n)) %>% 
+  group_by(sentiment) %>% 
+  top_n(50) %>% 
+  ungroup()-> 
+  tempp
+tempp %>% 
+  ggplot(aes(book, proportion, label = word )) +
+  # ggrepel geom, make arrows transparent, color by rank, size by n
+  geom_text_repel(segment.alpha = 0, 
+              aes(colour=sentiment, size=proportion)) +
+  # set word size range & turn off legend
+  scale_size_continuous(range = c(3, 6), guide = FALSE) +
+  theme(axis.text.x = element_text(angle = 90)) +
+  ggtitle("Top 50 Words by Sentiment in Each Book")
+```
+
+# Larger Groups of Words
+
+```{r}
+head(prideprejudice,12)
+```
+```{r}
+tibble(text = prideprejudice) %>% 
+  mutate(chapter = cumsum(str_detect(text, 
+                 regex("^chapter [\\divxlc]", ignore_case = TRUE))),
+         text = str_replace(text, "(Chapter \\d+)","\\1\\."),
+         text = str_replace_all(text, "((Mr)|(Mrs)|(Dr))\\.","\\1")) %>% 
+  unnest_tokens(sentence, text, token = "sentences") ->
+  PandP_sentences
+```
+
+```{r}
+PandP_sentences %>% 
+  mutate(sentence_number = row_number()) %>% 
+  unnest_tokens(word,sentence) %>% 
+  inner_join(get_sentiments("bing")) %>% 
+  filter(chapter >0) %>% 
+  count(chapter, sentence_number, sentiment) %>% 
+  pivot_wider(names_from = sentiment, values_from = n, values_fill = list(n = 0)) %>% 
+  mutate(sentence_sent = positive - negative) %>%  
+  mutate(sentence_sent = case_when(
+    sentence_sent >0 ~1,
+    sentence_sent == 0 ~0,
+    sentence_sent <0 ~ -1
+  )) %>%  
+  group_by(chapter) %>% 
+  summarize(chap_sent_per = sum(sentence_sent)/n()) %>% 
+  ggplot(aes(chapter, chap_sent_per)) +
+  geom_line()+
+  ggtitle("Sentence Sentiment Score per Chapter") +
+  ylab("(Score/Total Sentences in a Chapter") +
+  xlab("Chapter") +
+  geom_hline(yintercept = 0, color = "red", alpha = .4, lty = 2) +
+  scale_x_continuous(limits = c(1,61)) + 
+  geom_rug(sides = "b")
+```
+
+```{r}
+get_sentiments("bing") %>% 
+  filter(sentiment == "negative") %>% 
+  filter(word != "miss")-> 
+  bingnegative
+
+tidy_books %>%
+  group_by(book, chapter) %>%
+  summarize(words = n()) ->
+  wordcounts
+
+tidy_books %>%
+  semi_join(bingnegative) %>%
+  group_by(book, chapter) %>%
+  summarize(negativewords = n()) %>%
+  left_join(wordcounts, by = c("book", "chapter")) %>%
+  mutate(ratio = negativewords/words) %>%
+  filter(chapter != 0) %>%
+  top_n(1) %>%
+  ungroup()
+```
+
