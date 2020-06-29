@@ -20,7 +20,7 @@ library(gapminder)
 
 Here, I re-examine the analysis of Oeppen and Vaupel (2002).
 
-# Analysis
+This is summarizing the data to be clean
 
 # Life Expectancy Analysis
 ```{r}
