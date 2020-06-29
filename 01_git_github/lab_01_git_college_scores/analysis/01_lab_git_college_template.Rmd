@@ -1,0 +1,94 @@
+---
+title: "STAT 413/613 Lab 1: Git and GitHub"
+author: "Richard Ressler"
+date: "`r Sys.Date()`"
+output: html_document
+urlcolor: "blue"
+
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(fig.align  = "center",
+                      fig.height = 3, 
+                      fig.width  = 5)
+```
+
+# Instructions
+- Save, add, and commit after answer each numbered question.
+- Push to GitHub when you are done.
+
+## Learning Outcomes
+- Apply material from STAT 412/612
+- Commit code to a Git repo and push to GitHub.
+
+# College Scorecard
+
+The data folder contains "college_score_19-12-12.csv", a subset of the data in the [College Scorecard](https://collegescorecard.ed.gov/data/) database as of 12-12-2019. These data contain information on colleges in the United States. 
+The variables include:
+
+- `UNITID` and `OPEID`: Identifiers for the colleges.
+- `INSTNM`: Institution name
+- `ADM_RATE`: The Admission Rate.
+- `SAT_AVE`: Average SAT equivalent score of students admitted.
+- `UGDS`: Enrollment of undergraduate certificate/degree-seeking students
+- `COSTT4_A`: Average cost of attendance (academic year institutions)
+- `AVGFACSAL`: Average faculty salary
+- `GRAD_DEBT_MDN`: The median debt for students who have completed
+- `AGE_ENTRY`: Average age of entry
+- `ICLEVEL`: Level of institution (1 = 4-year, 2 = 2-year, 3 = less than 2-year).
+- `MN_EARN_WNE_P6`: Mean earnings of students working and not enrolled 6 years after entry.
+- `MD_EARN_WNE_P6`: Median earnings of students working and not enrolled 6 years after entry.
+
+1. Use relative paths to load the data frame from college_score.csv.
+```{r}
+
+```
+    
+2. If you used the default settings for reading in the data, then multiple variables are probably characters when they should be numerics.
+   Which ones? Why were they read in as characters? Fix these variables to be numbers.
+
+   
+
+```{r, eval = TRUE}
+
+```
+   
+3. Does average faculty salary seem to be associated the mean earnings of 
+   students six years after graduating? Justify with an appropriate plot.  
+   
+
+
+```{r}
+
+```
+   
+   
+4. Does the level of the institution seems to be associated with the mean earnings of students six years after graduating? Reproduce this plot in R to explore this relationship (Hint: use factors):  
+   
+
+   
+```{r, eval = TRUE}
+
+```
+   
+    
+5. Is the length of the name of an institution (in number of **characters**) associated with the mean earnings six years after graduation? Justify with an appropriate plot with name length on the vertical (Y) axis.
+```{r}
+
+```
+   
+6. Is the length of the name of an institution (in number of **words**) associated with the mean earnings six years after graduation? Justify with an appropriate plot. Make sure you appropriately account for overplotting if this is an issue.
+```{r}
+
+```
+  
+7. What are the shortest- and longest-named institutions (in terms of number of characters)? Try doing this in one `filter()` call.
+```{r}
+
+```
+
+8. Devise your own ranking of level 1 universities. Which ones are the best/worst under your ranking? Where does American University rank? Can you plot it?
+   
+```{r}
+
+```
